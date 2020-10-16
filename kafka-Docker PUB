@@ -1,0 +1,133 @@
+
+#Instalar o Docker
+yum install docker
+
+#Startando o Docker
+systemctl start docker
+
+#Habilitando o uso do Docker, e suas features
+systemctl enable docker
+
+#Verificando se o ambiente docker está ok
+systemctl status docker 0
+
+#Instalar o GIT
+yum install git
+
+#Instalar o Docker Copose
+sudo curl -L "https://github.com/docker/compose/releases/download/1.27.4/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+
+
+#Definindo as permissões para o docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+
+#Antes de mais nada, logue no docker (voce poderá criar seu usuário em https://hub.docker.com/) é gratis, e necessário.
+docker login
+
+#teste a sua instalação
+docker-compose --version
+
+#Clonar o GIT da Confluence
+git clone https://github.com/confluentinc/cp-docker-images
+
+#Navegue até a pasta
+cd cp-docker-images/examples/kafka-single-node/
+
+##Altere o Arquivo YAML
+---
+version: '2'
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    network_mode: host
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 32181
+      ZOOKEEPER_TICK_TIME: 2000
+    extra_hosts:
+      - "moby:127.0.0.1"
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    network_mode: host
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: localhost:32181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    extra_hosts:
+      - "moby:127.0.0.1"
+
+
+
+#Verificando se há alguma coisa ativa no ambiente já (provavelmente NÃO)
+sudo docker ps
+
+#Verificando se existe alguma imagem ativa (comandos para serem usados posteriormente)
+sudo docker image ps
+
+#Execute o comando
+docker-compose up -d
+
+#verifique se subiu o container
+docker ps
+
+#Verifique se os serviços do Zookepeer estão startados
+docker-compose logs zookeeper | grep -i binding
+
+#Verifique se os serviços do Kafka estão startados
+docker-compose logs kafka | grep -i started
+
+------ topico -----
+#Criar um tópico 
+docker-compose exec kafka  \
+kafka-topics --create --topic test1-2 --partitions 1 --replication-factor 1 --if-not-exists --zookeeper localhost:32181
+
+
+#Confirmar que o Tópico foi criado
+docker-compose exec kafka  \
+kafka-topics --describe --topic test1-2 --zookeeper localhost:32181
+
+#Produzindo Qualquer mensagem
+docker-compose exec kafka  \
+kafka-console-producer --broker-list localhost:29092 --topic test1-2
+
+#Consumindo as mensagens
+docker-compose exec kafka  \
+kafka-console-consumer --bootstrap-server localhost:29092 --topic test1-2 --from-beginning 
+
+------ Outros serviços -----
+
+#Produzindo 100 mensagens
+docker-compose exec kafka  \
+  bash -c "seq 100 | kafka-console-producer --request-required-acks 1 --broker-list localhost:29092 --topic test0 && echo 'Produced 100 messages.'"
+  
+#Consumindo as 100 mensagens
+docker-compose exec kafka  \
+kafka-console-consumer --bootstrap-server localhost:29092 --topic test1-2 --from-beginning --max-messages 100  
+
+
+
+
+docker-compose exec kafka  \
+
+kafka-console-consumer --bootstrap-server localhost:9092 --topic test1 --from-beginning
+
+
+
+_________________________________-----
+
+##Usando o Docker como insfraestrutura (Acessando o CONTAINER)
+
+#Este comando serve para identificarmos quais containers estão "UP" em nosso ambiente
+docker ps
+
+#Após o comando acima, vemos o "Nick-name" que demos ao nosso container, com isso conseguiremos abrir a "interface de infraestrutura" do nosso container
+docker exec -it kafka-single-node_kafka_1 /bin/bash
+
+#Após isto ele abrirá a interface, como se fosse o root do seu SO.
+
+cd /
+
+
